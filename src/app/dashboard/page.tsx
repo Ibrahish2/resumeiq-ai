@@ -4,28 +4,20 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 
-type CV = {
-  id: string;
-  full_name: string | null;
-  job_title: string | null;
-  template: string | null;
-  created_at: string;
-};
-
 export default function DashboardPage() {
   const supabase = createClient();
 
-  const [cvs, setCvs] = useState<CV[]>([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+
+  const [cvCount, setCvCount] = useState(0);
+  const [analysisCount, setAnalysisCount] = useState(0);
 
   useEffect(() => {
-    loadCVs();
+    loadDashboard();
   }, []);
 
-  async function loadCVs() {
-    setLoading(true);
-
+  async function loadDashboard() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -35,42 +27,28 @@ export default function DashboardPage() {
       return;
     }
 
-    const { data, error } = await supabase
+    setUserEmail(user.email ?? "");
+
+    const { count: cvCountResult } = await supabase
       .from("cvs")
-      .select("id, full_name, job_title, template, created_at")
-      .order("created_at", { ascending: false });
+      .select("*", {
+        count: "exact",
+        head: true,
+      });
 
-    if (error) {
-      console.error(error);
-      setMessage(`فشل تحميل السير: ${error.message}`);
-      setLoading(false);
-      return;
-    }
+    setCvCount(cvCountResult ?? 0);
 
-    setCvs(data ?? []);
+    const { count: analysisCountResult } = await supabase
+      .from("ai_results")
+      .select("*", {
+        count: "exact",
+        head: true,
+      })
+      .eq("type", "cv_analysis");
+
+    setAnalysisCount(analysisCountResult ?? 0);
+
     setLoading(false);
-  }
-
-  async function deleteCV(id: string) {
-    const confirmed = window.confirm(
-      "هل أنت متأكد من حذف هذه السيرة؟",
-    );
-
-    if (!confirmed) return;
-
-    const { error } = await supabase
-      .from("cvs")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      alert(`فشل الحذف: ${error.message}`);
-      return;
-    }
-
-    setCvs((currentCVs) =>
-      currentCVs.filter((cv) => cv.id !== id),
-    );
   }
 
   async function signOut() {
@@ -78,127 +56,142 @@ export default function DashboardPage() {
     window.location.href = "/auth/login";
   }
 
+  if (loading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+        جاري تحميل لوحة التحكم...
+      </main>
+    );
+  }
+
   return (
     <main
       dir="rtl"
-      className="min-h-screen bg-slate-950 px-5 py-10 text-white"
+      className="min-h-screen bg-slate-950 px-6 py-10 text-white"
     >
-      <div className="mx-auto max-w-6xl">
-        <header className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-auto max-w-7xl">
+        <header className="flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-3xl font-bold sm:text-4xl">
+            <h1 className="text-4xl font-bold">
               لوحة التحكم
             </h1>
 
             <p className="mt-2 text-slate-400">
-              شاهد السير الذاتية التي حفظتها.
+              مرحبًا، {userEmail}
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/create-cv"
-              className="rounded-xl bg-violet-600 px-6 py-3 text-center font-bold hover:bg-violet-500"
-            >
-              إنشاء CV جديد
-            </Link>
-
-            <button
-              type="button"
-              onClick={signOut}
-              className="rounded-xl border border-white/10 px-6 py-3 font-bold hover:bg-white/5"
-            >
-              تسجيل الخروج
-            </button>
-          </div>
+          <button
+            onClick={signOut}
+            className="rounded-xl border border-white/10 px-5 py-3 hover:bg-white/5"
+          >
+            تسجيل الخروج
+          </button>
         </header>
 
-        {loading && (
-          <p className="mt-12 text-center text-slate-400">
-            جاري تحميل السير...
-          </p>
-        )}
+        <section className="mt-10 grid gap-6 md:grid-cols-3">
+          <DashboardCard
+            title="السير الذاتية"
+            value={cvCount}
+            description="عدد السير الذاتية المحفوظة"
+          />
 
-        {message && (
-          <p className="mt-8 rounded-2xl bg-red-500/10 p-4 text-red-300">
-            {message}
-          </p>
-        )}
+          <DashboardCard
+            title="تحليل السيرة"
+            value={analysisCount}
+            description="عدد التحليلات المحفوظة"
+          />
 
-        {!loading && cvs.length === 0 && (
-          <section className="mt-12 rounded-3xl border border-white/10 bg-slate-900 p-10 text-center">
-            <h2 className="text-2xl font-bold">
-              ما عندك سيرة محفوظة بعد
-            </h2>
+          <DashboardCard
+            title="مطابقة الوظائف"
+            value={0}
+            description="سيتم ربطها قريبًا"
+          />
+        </section>
 
-            <p className="mt-3 text-slate-400">
-              أنشئ أول سيرة ذاتية وراح تظهر هنا.
-            </p>
+        <section className="mt-10 grid gap-5 md:grid-cols-4">
+          <ActionCard
+            href="/create-cv"
+            icon="📄"
+            title="إنشاء سيرة"
+            description="أنشئ سيرة احترافية."
+          />
 
-            <Link
-              href="/create-cv"
-              className="mt-6 inline-block rounded-xl bg-violet-600 px-6 py-3 font-bold hover:bg-violet-500"
-            >
-              إنشاء أول CV
-            </Link>
-          </section>
-        )}
+          <ActionCard
+            href="/analyze"
+            icon="🤖"
+            title="تحليل السيرة"
+            description="حلل سيرتك بالذكاء الاصطناعي."
+          />
 
-        {!loading && cvs.length > 0 && (
-          <section className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {cvs.map((cv) => (
-              <article
-                key={cv.id}
-                className="rounded-3xl border border-white/10 bg-slate-900 p-6"
-              >
-                <div className="rounded-2xl bg-white p-5 text-slate-900">
-                  <div className="rounded-xl bg-slate-900 px-5 py-6 text-white">
-                    <h2 className="text-xl font-bold">
-                      {cv.full_name || "بدون اسم"}
-                    </h2>
+          <ActionCard
+            href="/match"
+            icon="🎯"
+            title="مطابقة الوظيفة"
+            description="قارن سيرتك مع إعلان وظيفة."
+          />
 
-                    <p className="mt-2 text-sm text-slate-300">
-                      {cv.job_title || "بدون مسمى وظيفي"}
-                    </p>
-                  </div>
-
-                  <div className="space-y-3 py-5">
-                    <div className="h-2 rounded bg-slate-200" />
-                    <div className="h-2 w-4/5 rounded bg-slate-200" />
-                    <div className="h-2 w-3/5 rounded bg-slate-200" />
-                  </div>
-                </div>
-
-                <p className="mt-5 text-sm text-slate-400">
-                  القالب: {cv.template || "classic"}
-                </p>
-
-                <p className="mt-2 text-xs text-slate-500">
-                  تاريخ الإنشاء:{" "}
-                  {new Date(cv.created_at).toLocaleDateString("ar-IQ")}
-                </p>
-
-                <div className="mt-5 flex gap-3">
-                  <Link
-                    href={`/dashboard/${cv.id}`}
-                    className="flex-1 rounded-xl bg-violet-600 px-4 py-3 text-center font-bold hover:bg-violet-500"
-                  >
-                    عرض
-                  </Link>
-
-                  <button
-                    type="button"
-                    onClick={() => deleteCV(cv.id)}
-                    className="rounded-xl border border-red-400/20 px-4 py-3 font-bold text-red-300 hover:bg-red-400/10"
-                  >
-                    حذف
-                  </button>
-                </div>
-              </article>
-            ))}
-          </section>
-        )}
+          <ActionCard
+            href="/dashboard/history"
+            icon="🕒"
+            title="سجل التحليلات"
+            description="عرض جميع التحليلات المحفوظة."
+          />
+        </section>
       </div>
     </main>
+  );
+}
+
+function DashboardCard({
+  title,
+  value,
+  description,
+}: {
+  title: string;
+  value: number;
+  description: string;
+}) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-slate-900 p-7">
+      <h2 className="text-xl font-bold">{title}</h2>
+
+      <p className="mt-4 text-5xl font-bold text-violet-400">
+        {value}
+      </p>
+
+      <p className="mt-3 text-slate-400">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function ActionCard({
+  href,
+  icon,
+  title,
+  description,
+}: {
+  href: string;
+  icon: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="rounded-3xl border border-white/10 bg-slate-900 p-7 transition hover:-translate-y-1 hover:border-violet-400/40"
+    >
+      <div className="text-3xl">{icon}</div>
+
+      <h2 className="mt-5 text-xl font-bold">
+        {title}
+      </h2>
+
+      <p className="mt-3 text-slate-400">
+        {description}
+      </p>
+    </Link>
   );
 }

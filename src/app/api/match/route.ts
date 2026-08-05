@@ -1,6 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
 
@@ -8,10 +7,10 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
-const analysisSchema = {
+const matchSchema = {
   type: "object",
   properties: {
-    score: {
+    matchScore: {
       type: "integer",
       minimum: 0,
       maximum: 100,
@@ -19,37 +18,30 @@ const analysisSchema = {
     summary: {
       type: "string",
     },
-    strengths: {
+    matchedSkills: {
       type: "array",
       items: { type: "string" },
-      minItems: 3,
-      maxItems: 6,
     },
-    weaknesses: {
+    missingSkills: {
       type: "array",
       items: { type: "string" },
-      minItems: 3,
-      maxItems: 6,
     },
-    improvements: {
+    missingKeywords: {
       type: "array",
       items: { type: "string" },
-      minItems: 3,
-      maxItems: 6,
     },
-    keywords: {
+    recommendations: {
       type: "array",
       items: { type: "string" },
-      maxItems: 10,
     },
   },
   required: [
-    "score",
+    "matchScore",
     "summary",
-    "strengths",
-    "weaknesses",
-    "improvements",
-    "keywords",
+    "matchedSkills",
+    "missingSkills",
+    "missingKeywords",
+    "recommendations",
   ],
   additionalProperties: false,
 };
@@ -64,11 +56,23 @@ export async function POST(request: Request) {
     }
 
     const formData = await request.formData();
+
     const file = formData.get("file");
+    const jobDescription = formData.get("jobDescription");
 
     if (!(file instanceof File)) {
       return NextResponse.json(
-        { error: "لم يتم إرسال ملف." },
+        { error: "لم يتم إرسال ملف السيرة." },
+        { status: 400 },
+      );
+    }
+
+    if (
+      typeof jobDescription !== "string" ||
+      jobDescription.trim().length < 30
+    ) {
+      return NextResponse.json(
+        { error: "وصف الوظيفة قصير أو غير موجود." },
         { status: 400 },
       );
     }
@@ -91,18 +95,22 @@ export async function POST(request: Request) {
     const base64 = Buffer.from(bytes).toString("base64");
 
     const prompt = `
-حلل هذه السيرة الذاتية باللغة العربية كخبير توظيف وأنظمة ATS.
+قارن السيرة الذاتية المرفقة مع وصف الوظيفة التالي كخبير توظيف وأنظمة ATS.
 
-قيّم:
-- وضوح المعلومات.
-- جودة الملخص المهني.
-- التعليم والخبرات.
-- المهارات والكلمات المفتاحية.
-- سهولة قراءة السيرة بواسطة أنظمة ATS.
+وصف الوظيفة:
+${jobDescription}
 
-لا تخترع خبرات أو شهادات غير موجودة.
-لا تدّعِ أن الدرجة تضمن الحصول على وظيفة.
-اجعل الاقتراحات عملية ومحددة.
+المطلوب:
+- أعطِ نسبة تطابق واقعية من 0 إلى 100.
+- لخّص مدى مناسبة المرشح للوظيفة.
+- حدّد المهارات الموجودة في السيرة والمتوافقة مع الوظيفة.
+- حدّد المهارات المفقودة.
+- حدّد الكلمات المفتاحية الناقصة.
+- أعطِ توصيات عملية لتحسين السيرة لهذه الوظيفة تحديدًا.
+
+لا تخترع خبرات أو مهارات غير موجودة.
+لا تدّعِ أن النتيجة تضمن القبول.
+اكتب النتيجة باللغة العربية.
 `;
 
     const response = await ai.models.generateContent({
@@ -118,7 +126,7 @@ export async function POST(request: Request) {
       ],
       config: {
         responseMimeType: "application/json",
-        responseSchema: analysisSchema,
+        responseSchema: matchSchema,
       },
     });
 
@@ -126,58 +134,18 @@ export async function POST(request: Request) {
       throw new Error("لم يرجع Gemini نتيجة.");
     }
 
-    const analysis = JSON.parse(response.text);
+    const result = JSON.parse(response.text);
 
-    // نحاول معرفة المستخدم المسجل حاليًا.
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    // إذا كان مسجلًا، نحفظ التحليل داخل قاعدة البيانات.
-   if (!user) {
-  return NextResponse.json(
-    {
-      error: "التحليل اكتمل، لكن المستخدم غير مسجل الدخول لذلك لم تُحفظ النتيجة.",
-    },
-    { status: 401 },
-  );
-}
-
-const { error: saveError } = await supabase
-  .from("ai_results")
-  .insert({
-    user_id: user.id,
-    type: "cv_analysis",
-    title: file.name,
-    result: analysis,
-  });
-
-if (saveError) {
-  console.error("Save analysis error:", saveError);
-
-  return NextResponse.json(
-    {
-      error: `تم التحليل لكن فشل الحفظ في Supabase: ${saveError.message}`,
-    },
-    { status: 500 },
-  );
-}
-
-   return NextResponse.json({
-  analysis,
-  saved: true,
-});
+    return NextResponse.json({ result });
   } catch (error) {
-    console.error("Gemini analysis error:", error);
+    console.error("Match API error:", error);
 
     return NextResponse.json(
       {
         error:
           error instanceof Error
             ? error.message
-            : "حدث خطأ أثناء تحليل السيرة.",
+            : "حدث خطأ أثناء تحليل التطابق.",
       },
       { status: 500 },
     );
