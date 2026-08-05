@@ -29,13 +29,19 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button className="rounded-xl px-4 py-2 text-sm text-slate-300 transition hover:bg-white/10">
-            تسجيل الدخول
-          </button>
+          <Link
+  href="/auth/login"
+  className="rounded-xl px-4 py-2 text-sm text-slate-300 transition hover:bg-white/10"
+>
+  تسجيل الدخول
+</Link>
 
-          <button className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold transition hover:bg-violet-500">
-            ابدأ مجانًا
-          </button>
+          <Link
+  href="/auth/login"
+  className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold transition hover:bg-violet-500"
+>
+  ابدأ مجانًا
+</Link>
         </div>
       </nav>
 
@@ -119,9 +125,12 @@ export default function Home() {
             ابدأ الآن وأنشئ أول سيرة ذاتية احترافية لك.
           </p>
 
-          <button className="mt-8 rounded-2xl bg-white px-8 py-4 font-bold text-slate-950 transition hover:scale-105">
-            ابدأ مجانًا
-          </button>
+          <Link
+  href="/auth/login"
+  className="mt-8 inline-block rounded-2xl bg-white px-8 py-4 font-bold text-slate-950 transition hover:scale-105"
+>
+  ابدأ مجانًا
+</Link>
         </div>
       </section>
 
