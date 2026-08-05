@@ -23,7 +23,7 @@ const features = [
 export default function Home() {
   return (
     <main className="min-h-screen bg-slate-950 text-white">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
+      <nav className="relative z-50 mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <div className="text-2xl font-bold tracking-tight">
           Qabool<span className="text-violet-400">.</span>
         </div>
@@ -46,7 +46,7 @@ export default function Home() {
       </nav>
 
       <section className="relative overflow-hidden px-6 pb-24 pt-20 text-center">
-        <div className="absolute left-1/2 top-10 -z-0 h-72 w-72 -translate-x-1/2 rounded-full bg-violet-600/20 blur-3xl" />
+        <div className="pointer-events-none absolute left-1/2 top-10 z-0 h-72 w-72 -translate-x-1/2 rounded-full bg-violet-600/20 blur-3xl" />
 
         <div className="relative z-10 mx-auto max-w-4xl">
           <div className="mx-auto mb-6 w-fit rounded-full border border-violet-400/20 bg-violet-400/10 px-4 py-2 text-sm text-violet-300">
