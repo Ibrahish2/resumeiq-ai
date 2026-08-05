@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useState } from "react";
+import { createClient } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -29,6 +30,7 @@ const initialData: CVData = {
 };
 
 export default function CreateCVPage() {
+  const supabase = createClient();
   const [cvData, setCvData] = useState<CVData>(initialData);
   const router = useRouter();
 
@@ -43,11 +45,42 @@ export default function CreateCVPage() {
     }));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
   event.preventDefault();
 
   if (!cvData.fullName.trim()) {
     alert("اكتب الاسم الكامل أولًا.");
+    return;
+  }
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    alert("يجب تسجيل الدخول أولًا.");
+    router.push("/auth/login");
+    return;
+  }
+
+  const { error } = await supabase.from("cvs").insert({
+    user_id: user.id,
+    full_name: cvData.fullName,
+    job_title: cvData.jobTitle,
+    email: cvData.email,
+    phone: cvData.phone,
+    city: cvData.city,
+    summary: cvData.summary,
+    education: cvData.education,
+    experience: cvData.experience,
+    skills: cvData.skills,
+    template: "classic",
+  });
+
+  if (error) {
+    console.error(error);
+    alert(`فشل حفظ السيرة: ${error.message}`);
     return;
   }
 
