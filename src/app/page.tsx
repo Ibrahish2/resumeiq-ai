@@ -28,13 +28,13 @@ export default function Home() {
           Qabool<span className="text-violet-400">.</span>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Link
+        <div className="relative z-50 flex items-center gap-3">
+          <a
   href="/auth/login"
-  className="rounded-xl px-4 py-2 text-sm text-slate-300 transition hover:bg-white/10"
+  className="rounded-xl bg-red-600 px-4 py-2 text-white"
 >
   تسجيل الدخول
-</Link>
+</a>
 
           <Link
   href="/auth/login"
@@ -45,7 +45,7 @@ export default function Home() {
         </div>
       </nav>
 
-      <section className="relative overflow-hidden px-6 pb-24 pt-20 text-center">
+      <section className="relative z-10 overflow-hidden px-6 pb-24 pt-20 text-center">
         <div className="pointer-events-none absolute left-1/2 top-10 z-0 h-72 w-72 -translate-x-1/2 rounded-full bg-violet-600/20 blur-3xl" />
 
         <div className="relative z-10 mx-auto max-w-4xl">
@@ -73,9 +73,12 @@ export default function Home() {
   أنشئ سيرتك الآن
 </Link>
 
-            <button className="rounded-2xl border border-white/10 bg-white/5 px-8 py-4 font-bold transition hover:bg-white/10">
-              تحليل CV
-            </button>
+            <Link
+  href="/analyze"
+  className="rounded-2xl border border-white/10 bg-white/5 px-8 py-4 font-bold transition hover:bg-white/10"
+>
+  تحليل CV
+</Link>
           </div>
 
           <p className="mt-5 text-sm text-slate-500">
