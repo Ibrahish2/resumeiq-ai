@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 type CVData = {
@@ -29,6 +30,7 @@ const initialData: CVData = {
 
 export default function CreateCVPage() {
   const [cvData, setCvData] = useState<CVData>(initialData);
+  const router = useRouter();
 
   function handleChange(
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -42,9 +44,16 @@ export default function CreateCVPage() {
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    alert("تم حفظ البيانات مؤقتًا. سنضيف تنزيل PDF في الخطوة القادمة.");
+  event.preventDefault();
+
+  if (!cvData.fullName.trim()) {
+    alert("اكتب الاسم الكامل أولًا.");
+    return;
   }
+
+  localStorage.setItem("qabool-cv-data", JSON.stringify(cvData));
+  router.push("/templates");
+}
 
   const skillsList = cvData.skills
     .split(",")
