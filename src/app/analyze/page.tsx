@@ -8,7 +8,7 @@ export default function AnalyzePage() {
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [message, setMessage] = useState("");
-  const [analysis, setAnalysis] = useState("");
+  const [analysis, setAnalysis] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   function chooseFile() {
@@ -48,8 +48,7 @@ export default function AnalyzePage() {
 
   setLoading(true);
   setMessage("جاري تحليل السيرة...");
-  setAnalysis("");
-
+ setAnalysis("");
   try {
     const formData = new FormData();
     formData.append("file", selectedFile);
@@ -166,19 +165,79 @@ export default function AnalyzePage() {
           >
            {loading ? "جاري التحليل..." : "بدء التحليل"}
           </button>
-          {analysis && (
-  <div className="mt-8 rounded-2xl border border-slate-700 bg-slate-900 p-6 text-right">
-    <h2 className="mb-4 text-2xl font-bold">
-      📊 نتيجة التحليل
-    </h2>
-
-    <pre className="whitespace-pre-wrap font-sans leading-8 text-slate-300">
-      {analysis}
-    </pre>
-  </div>
-)}
+          {analysis && <AnalysisResult analysis={analysis} />}
         </section>
       </div>
     </main>
+  );
+} 
+function AnalysisResult({ analysis }: { analysis: any }) {
+  return (
+    <section className="mt-8 space-y-6 text-right">
+      <div className="rounded-3xl border border-violet-500/20 bg-violet-500/10 p-8 text-center">
+        <p className="text-sm text-violet-300">
+          درجة السيرة الذاتية
+        </p>
+
+        <h2 className="mt-3 text-6xl font-bold text-white">
+          {analysis.score}
+          <span className="text-2xl text-slate-400">
+            /100
+          </span>
+        </h2>
+      </div>
+
+      <ResultCard
+        title="📝 الملخص"
+        items={[analysis.summary]}
+      />
+
+      <ResultCard
+        title="✅ نقاط القوة"
+        items={analysis.strengths}
+      />
+
+      <ResultCard
+        title="⚠️ نقاط الضعف"
+        items={analysis.weaknesses}
+      />
+
+      <ResultCard
+        title="💡 تحسينات مقترحة"
+        items={analysis.improvements}
+      />
+
+      <ResultCard
+        title="🔍 الكلمات المفتاحية الناقصة"
+        items={analysis.keywords}
+      />
+    </section>
+  );
+}
+
+function ResultCard({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-slate-900 p-6">
+      <h2 className="mb-4 text-xl font-bold">
+        {title}
+      </h2>
+
+      <ul className="space-y-3">
+        {items.map((item, index) => (
+          <li
+            key={index}
+            className="rounded-xl bg-slate-950 p-3 leading-7 text-slate-300"
+          >
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

@@ -7,6 +7,54 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
+const analysisSchema = {
+  type: "object",
+  properties: {
+    score: {
+      type: "integer",
+      minimum: 0,
+      maximum: 100,
+      description: "ATS-style resume score from 0 to 100.",
+    },
+    summary: {
+      type: "string",
+      description: "A short Arabic summary of the resume quality.",
+    },
+    strengths: {
+      type: "array",
+      items: { type: "string" },
+      minItems: 3,
+      maxItems: 6,
+    },
+    weaknesses: {
+      type: "array",
+      items: { type: "string" },
+      minItems: 3,
+      maxItems: 6,
+    },
+    improvements: {
+      type: "array",
+      items: { type: "string" },
+      minItems: 3,
+      maxItems: 6,
+    },
+    keywords: {
+      type: "array",
+      items: { type: "string" },
+      maxItems: 10,
+    },
+  },
+  required: [
+    "score",
+    "summary",
+    "strengths",
+    "weaknesses",
+    "improvements",
+    "keywords",
+  ],
+  additionalProperties: false,
+};
+
 export async function POST(request: Request) {
   try {
     if (!process.env.GEMINI_API_KEY) {
@@ -44,36 +92,18 @@ export async function POST(request: Request) {
     const base64 = Buffer.from(bytes).toString("base64");
 
     const prompt = `
-حلل هذه السيرة الذاتية كخبير توظيف وأنظمة ATS.
+حلل هذه السيرة الذاتية باللغة العربية كخبير توظيف وأنظمة ATS.
 
-أعد النتيجة باللغة العربية بهذا الترتيب:
+قيّم:
+- وضوح المعلومات.
+- جودة الملخص المهني.
+- التعليم والخبرات.
+- المهارات والكلمات المفتاحية.
+- سهولة قراءة السيرة بواسطة أنظمة ATS.
 
-الدرجة: رقم من 100
-
-الملخص:
-فقرة قصيرة.
-
-نقاط القوة:
-- نقطة
-- نقطة
-- نقطة
-
-نقاط الضعف:
-- نقطة
-- نقطة
-- نقطة
-
-تحسينات مقترحة:
-- اقتراح عملي
-- اقتراح عملي
-- اقتراح عملي
-
-الكلمات المفتاحية الناقصة:
-- كلمة
-- كلمة
-- كلمة
-
-لا تخترع خبرات أو شهادات غير موجودة، ولا تدّعِ أن النتيجة تضمن القبول.
+لا تخترع خبرات أو شهادات غير موجودة.
+لا تدّعِ أن الدرجة تضمن الحصول على وظيفة.
+اجعل الاقتراحات عملية ومحددة.
 `;
 
     const response = await ai.models.generateContent({
@@ -87,11 +117,19 @@ export async function POST(request: Request) {
           },
         },
       ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: analysisSchema,
+      },
     });
 
-    return NextResponse.json({
-      analysis: response.text || "لم يتم إنشاء نتيجة.",
-    });
+    if (!response.text) {
+      throw new Error("لم يرجع Gemini نتيجة.");
+    }
+
+    const analysis = JSON.parse(response.text);
+
+    return NextResponse.json({ analysis });
   } catch (error) {
     console.error("Gemini analysis error:", error);
 
